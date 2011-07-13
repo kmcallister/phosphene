@@ -9,7 +9,8 @@
 
 width  equ 320
 height equ 200
-center equ width*(height/2)/4 + width/8
+pixels equ width*height
+center equ width*(height/2) + width/2
 
 ; MBR code runs in 16-bit mode at address 0x7C00
 bits 16
@@ -26,9 +27,9 @@ tmp    equ   0
 ;;;; GLOBAL VARIABLES
 ; ds, ss  =  scratch RAM
 ; es      =  video   RAM
+; fs, gs  =  source, dest buffers in scratch RAM
 ;
-; si, di  =  source, dest buffers in VRAM
-; bp      =  (frame count << 2) | plane
+; bp      =  frame count
 
 
 ;;;; ENTRY POINT
@@ -38,6 +39,10 @@ main:
     mov  ax, 0x07E0
     mov  ds, ax
     mov  ss, ax
+    add  ax, 0x1000
+    mov  fs, ax
+    add  ax, 0x1000
+    mov  gs, ax
     mov  sp, 0x1000
 
     ; enter VGA mode 13h
@@ -65,21 +70,23 @@ main:
     mov  word [tmp], width / 4
     fild word [tmp]
 
-    ; set source and dest buffer offsets
-    xor  si, si
-    mov  di, 0x3F00
-
     ; initialize frame counter
     xor  bp, bp
 
 
-;;;; RENDER LOOP START
-render:
+;;;; MAIN LOOP
+
+main_loop:
+
+
+;;;; COMPUTE STEP
+compute:
+
+    xor  di, di
 
     ; push frame count to the FPU stack and scale
     ; by height (arbitrary, convenient)
     mov [tmp], bp
-    shr word [tmp], 2
     fild word [tmp]
     fdiv st2
 
@@ -98,33 +105,13 @@ render:
     ;
     ; stack: j k h w
 
-render_plane:
-
-    ; set the VGA write plane bitmask
-    mov  cx, bp
-    and  cl, 0x03
-    mov  ax, 0x0102
-    shl  ah, cl
-    mov  dx, vga_sequ
-    out  dx, ax
-
-    ; loop over row (dx) and col (cx)
-
     pusha
     mov  dx, height
-render_row:
-    mov  cx, width / 4  ; one plane only
-render_pix:
+compute_row:
+    mov  cx, width
+compute_pix:
 
     pusha
-
-    ; offset the x value by the plane index
-    mov  ax, bp
-    and  ax, 0x03
-    shl  cx, 2
-    or   cx, ax
-
-    ; stack: j k h w
 
     fld1
     fadd st0
@@ -179,51 +166,78 @@ render_pix:
 
 
     ; bounds check
-    shr  bx, 2
-    cmp  bx, width / 4
+    cmp  bx, width
     jge  out_of_bounds
     cmp  dx, height
     jge  out_of_bounds
 
 in_bounds:
-    imul dx, width / 4
+    imul dx, width
     add  bx, dx
-    mov  al, [es:si+bx]
+    mov  al, [fs:bx]
     inc  al  ; color shift for interestingness
-    jmp  draw
+    jmp  write_new
 
 out_of_bounds:
     ; combine center color with coords
-    mov  al, [es:si+center]
+    mov  al, [fs:center]
     add  dx, bx
     or   al, dl
 
-draw:
-    mov  [es:di], al
+write_new:
+    mov  [gs:di], al
 
     popa
 
     inc  di          ; next output pixel
-    loop render_pix  ; next col
+    loop compute_pix ; next col
     dec  dx          ; new row
-    jnz  render_row
+    jnz  compute_row
     popa
 
-    inc  bp          ; next plane or frame
-    test bp, 0x3
-    jnz  render_plane
+    inc  bp          ; next frame
 
     ; discard j, k from FPU stack
     fcompp
 
-    ; swap buffers
-    mov  dx, vga_crtc
-    mov  ax, di
-    or   ax, 0x0C
-    out  dx, ax
-    xchg si, di
 
-    jmp render
+;;;; DRAW STEP
+draw:
+
+    xor  cl, cl
+draw_plane:
+    ; set the bitplane mask
+    mov  dx, vga_sequ
+    mov  ax, 0x0102
+    shl  ah, cl
+    out  dx, ax
+
+    ; copy every 4th pixel
+    xor  bx, bx
+    mov  bl, cl
+    xor  di, di
+draw_loop:
+    mov  al, [gs:bx]
+    mov  [es:di], al
+
+    add  bx, 4
+    inc  di
+
+    cmp  di, pixels / 4
+    jl   draw_loop
+
+    inc  cl
+    cmp  cl, 4
+    jl   draw_plane
+
+
+    ; swap memory buffers
+    push fs
+    push gs
+    pop  fs
+    pop  gs
+
+    jmp main_loop
 
 
 ;;;; END
