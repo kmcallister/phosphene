@@ -20,9 +20,6 @@ org  0x7C00
 vga_sequ equ 0x3c4
 vga_crtc equ 0x3d4
 
-; address in data segment of a temporary variable
-tmp    equ   0
-
 
 ;;;; GLOBAL VARIABLES
 ; ds, ss  =  scratch RAM
@@ -30,6 +27,7 @@ tmp    equ   0
 ; fs, gs  =  source, dest buffers in scratch RAM
 ;
 ; bp      =  frame count
+; si      = 0
 
 
 ;;;; ENTRY POINT
@@ -49,29 +47,20 @@ main:
     mov  ax, 0x13
     int  0x10
 
-    ; unchain the graphics bitplanes
-    mov  dx, vga_sequ
-    mov  ax, 0x0604
-    out  dx, ax
-    mov  dx, vga_crtc
-    mov  ax, 0xE317
-    out  dx, ax
-    mov  ax, 0x0014
-    out  dx, ax
-
     ; access graphics memory through segment es
     push 0xA000
     pop  es
 
     ; initialize the FPU with some constants
     fninit
-    mov  word [tmp], height / 4
-    fild word [tmp]
-    mov  word [tmp], width / 4
-    fild word [tmp]
+    xor  si, si
+    mov  word [si], height / 4
+    fild word [si]
+    mov  word [si], width / 4
+    fild word [si]
 
     ; initialize frame counter
-    xor  bp, bp
+    mov  bp, 60
 
 
 ;;;; MAIN LOOP
@@ -86,8 +75,8 @@ compute:
 
     ; push frame count to the FPU stack and scale
     ; by height (arbitrary, convenient)
-    mov [tmp], bp
-    fild word [tmp]
+    mov [si], bp
+    fild word [si]
     fdiv st2
 
     ; stack: t h w
@@ -105,7 +94,6 @@ compute:
     ;
     ; stack: j k h w
 
-    pusha
     mov  dx, height
 compute_row:
     mov  cx, width
@@ -118,15 +106,15 @@ compute_pix:
 
     ; stack: 2 j k h w
 
-    mov  [tmp], dx
-    fild word [tmp]
+    mov  [si], dx
+    fild word [si]
     fdiv st5
     fsub st1
 
     ; stack: y 2 j k h w
 
-    mov  [tmp], cx
-    fild word [tmp]
+    mov  [si], cx
+    fild word [si]
     fdiv st5
     fsub st2
 
@@ -155,13 +143,13 @@ compute_pix:
     ; stack: (2xy + 2) ((x^2 - y^2) + 2) j k h w
 
     fmul  st5
-    fistp word [tmp]
-    mov   dx, [tmp]
+    fistp word [si]
+    mov   dx, [si]
     ; dx <- scaled (2xy + 2)
 
     fmul  st3
-    fistp word [tmp]
-    mov   bx, [tmp]
+    fistp word [si]
+    mov   bx, [si]
     ; bx <- scaled (x^2 - y^2)
 
 
@@ -193,7 +181,6 @@ write_new:
     loop compute_pix ; next col
     dec  dx          ; new row
     jnz  compute_row
-    popa
 
     inc  bp          ; next frame
 
@@ -204,32 +191,14 @@ write_new:
 ;;;; DRAW STEP
 draw:
 
-    xor  cl, cl
-draw_plane:
-    ; set the bitplane mask
-    mov  dx, vga_sequ
-    mov  ax, 0x0102
-    shl  ah, cl
-    out  dx, ax
-
-    ; copy every 4th pixel
-    xor  bx, bx
-    mov  bl, cl
-    xor  di, di
-draw_loop:
-    mov  al, [gs:bx]
-    mov  [es:di], al
-
-    add  bx, 4
-    inc  di
-
-    cmp  di, pixels / 4
-    jl   draw_loop
-
-    inc  cl
-    cmp  cl, 4
-    jl   draw_plane
-
+    push ds
+    push gs
+    pop  ds
+    xor  si, si
+    mov  di, si
+    mov  cx, pixels / 2
+    rep  movsw
+    pop  ds
 
     ; swap memory buffers
     push fs
