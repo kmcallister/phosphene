@@ -43,6 +43,12 @@ mib_window_gran equ 4
 
 
 
+; VGA palette registers
+vga_dac_addr equ 0x3C8
+vga_dac_data equ 0x3C9
+
+
+
 ;;;; ENTRY POINT
 main:
 
@@ -69,6 +75,44 @@ main:
     mov  bx, 0x0101
     int  0x10
 
+    ; set up a palette
+    mov  dx, vga_dac_addr
+    xor  al, al
+    out  dx, al
+    mov  dx, vga_dac_data
+    mov  cx, 64
+palette_1:
+    mov  al, cl
+    out  dx, al
+    mov  al, 0
+    out  dx, al
+    out  dx, al
+    loop palette_1
+    mov  cx, 64
+palette_2:
+    mov  al, 0
+    out  dx, al
+    mov  al, cl
+    out  dx, al
+    mov  al, 0
+    out  dx, al
+    loop palette_2
+    mov  cx, 64
+palette_3:
+    mov  al, 0
+    out  dx, al
+    out  dx, al
+    mov  al, cl
+    out  dx, al
+    loop palette_3
+    mov  cx, 64
+palette_4:
+    mov  al, cl
+    out  dx, al
+    out  dx, al
+    out  dx, al
+    loop palette_4
+
     ; initialize the FPU with some constants
     fninit
     mov  si, 0x100
@@ -78,7 +122,7 @@ main:
     fild word [si]
 
     ; initialize frame counter and segments
-    mov  bp, 60
+    mov  bp, 0x100
     push 0x1000
     pop  fs
 
@@ -99,6 +143,7 @@ main_loop:
     mov [si], bp
     fild word [si]
     fdiv st2
+    fadd st0
 
     ; stack: t h w
 
@@ -109,7 +154,13 @@ main_loop:
     fldl2e
     fmul
     fcos
+
     fldlg2
+    fldlg2
+    fmul
+    fadd  st0
+    fadd  st0
+
     fadd  st0
     fmul  st2, st0
     fmulp st1, st0
@@ -195,7 +246,7 @@ in_bounds:
     shl  dx, 9
     add  bx, dx
     mov  al, [gs:bx]
-    inc  al  ; color shift for interestingness
+    add  al, 16  ; color shift for interestingness
     jmp  write_new
 
 out_of_bounds:
