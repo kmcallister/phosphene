@@ -81,13 +81,23 @@ main:
     xor  al, al
     out  dx, al
     mov  dx, vga_dac_data
-    mov  cx, 64
+
+    ; RGB = al, bl, bh
+    xor  ax, ax
+    xor  bx, bx
 palette:
-    mov  bl, cl
-    call palette_expand
-    call palette_expand
-    call palette_expand
-    loop palette
+    pusha
+    out  dx, al
+    mov  al, bl
+    out  dx, al
+    mov  al, bh
+    out  dx, al
+    popa
+    add  al, 2
+    add  bl, 3
+    add  bh, 5
+    inc  ah
+    jnz  palette
 
     ; initialize the FPU with some constants
     fninit
@@ -222,13 +232,13 @@ in_bounds:
     shl  dx, 9
     add  bx, dx
     mov  al, [gs:bx]
-    add  al, 16  ; color shift for interestingness
+    add  al, 2  ; color shift for interestingness
     jmp  write_new
 
 out_of_bounds:
     ; slowly vary color with time
     mov  ax, bp
-    shr  ax, 4
+    shr  ax, 6
 
 write_new:
     mov  [es:di], al
@@ -280,7 +290,6 @@ draw_row:
     mov  cx, width
 draw_pix:
     mov  al, [gs:si]
-    and  al, 0x3F
     mov  [es:di], al
     inc  si
 
@@ -319,23 +328,6 @@ setwin:
     mov  ax, 0x4F05
     xor  bx, bx
     int  0x10
-    ret
-
-
-palette_expand:
-    pusha
-    xor  al, al
-    test bl, 1
-    jz   px_no_1
-    or   al, 0x7
-px_no_1:
-    test bl, 2
-    jz   px_no_2
-    or   al, 0x38
-px_no_2:
-    out  dx, al
-    popa
-    shr  bl, 2
     ret
 
 
