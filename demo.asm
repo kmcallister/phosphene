@@ -190,14 +190,15 @@ write_new:
 ;;;; DRAW STEP
 draw:
 
-    push ds
-    push gs
-    pop  ds
-    xor  si, si
-    mov  di, si
-    mov  cx, pixels / 2
-    rep  movsw
-    pop  ds
+    xor  di, di
+    mov  cx, pixels
+draw_loop:
+    mov  al, [gs:di]
+    and  al, 0x1F
+    add  al, 16
+    mov  [es:di], al
+    inc  di
+    loop draw_loop
 
     ; swap memory buffers
     push fs
