@@ -7,10 +7,8 @@
 
 ;;;; CONSTANTS
 
-width  equ 320
-height equ 200
-pixels equ width*height
-center equ width*(height/2) + width/2
+width  equ 512
+height equ 384
 
 ; MBR code runs in 16-bit mode at address 0x7C00
 bits 16
@@ -22,12 +20,21 @@ vga_crtc equ 0x3d4
 
 
 ;;;; GLOBAL VARIABLES
-; ds, ss  =  scratch RAM
-; es      =  video   RAM
-; fs, gs  =  source, dest buffers in scratch RAM
+; ds, ss  = scratch RAM
+; fs      = initial read segment
 ;
-; bp      =  frame count
-; si      = 0
+; bp      = frame count
+; si      = must remain small for 'mov [si]'
+
+;;;; BUFFER FORMAT
+; 128 lines of 512 per segment
+;   3 segments per buf
+;
+; The three segments:
+;   buffer A:  1000 2000 3000
+;   buffer B:  4000 5000 6000
+;
+; Use bit ops to find these from fs = 1000 or 4000
 
 
 ;;;; ENTRY POINT
@@ -37,19 +44,11 @@ main:
     mov  ax, 0x07E0
     mov  ds, ax
     mov  ss, ax
-    add  ax, 0x1000
-    mov  fs, ax
-    add  ax, 0x1000
-    mov  gs, ax
     mov  sp, 0x1000
 
     ; enter VGA mode 13h
     mov  ax, 0x13
     int  0x10
-
-    ; access graphics memory through segment es
-    push 0xA000
-    pop  es
 
     ; initialize the FPU with some constants
     fninit
@@ -59,25 +58,30 @@ main:
     mov  word [si], width / 4
     fild word [si]
 
-    ; initialize frame counter
+    ; initialize frame counter and segments
     mov  bp, 60
+    push 0x1000
+    pop  fs
 
 
 ;;;; MAIN LOOP
-
 main_loop:
 
-
-;;;; COMPUTE STEP
-compute:
-
+    xor  si, si
     xor  di, di
+
+    ; initialize write segment register
+    mov  ax, fs
+    xor  ah, 0x50
+    mov  es, ax
 
     ; push frame count to the FPU stack and scale
     ; by height (arbitrary, convenient)
     mov [si], bp
     fild word [si]
     fdiv st2
+    fldpi
+    fmul
 
     ; stack: t h w
 
@@ -159,14 +163,23 @@ compute_pix:
 
     ; bounds check
     cmp  bx, width
-    jge  out_of_bounds
+    jae  out_of_bounds
     cmp  dx, height
-    jge  out_of_bounds
+    jae  out_of_bounds
 
 in_bounds:
-    imul dx, width
+    ; extract segment from top 2 bits of y
+    mov  cx, dx
+    shr  cx, 3
+    and  cl, 0x30
+    mov  ax, fs
+    add  ah, cl
+    mov  gs, ax
+
+    and  dl, 0x7F
+    shl  dx, 9
     add  bx, dx
-    mov  al, [fs:bx]
+    mov  al, [gs:bx]
     inc  al  ; color shift for interestingness
     jmp  write_new
 
@@ -176,12 +189,21 @@ out_of_bounds:
     shr  ax, 4
 
 write_new:
-    mov  [gs:di], al
+    mov  [es:di], al
 
     popa
 
-    inc  di          ; next output pixel
+    inc  di          ; next output pixel (may wrap)
     loop compute_pix ; next col
+
+    test di, di
+    jnz  no_segwrap
+
+    mov  ax, es
+    add  ah, 0x10
+    mov  es, ax
+
+no_segwrap:
     dec  dx          ; new row
     jnz  compute_row
 
@@ -194,23 +216,37 @@ write_new:
 ;;;; DRAW STEP
 draw:
 
+    ; swap memory buffers
+    mov  ax, fs
+    xor  ah, 0x50
+    mov  fs, ax
+    add  ah, 0x10
+    mov  gs, ax
+
+    ; access graphics memory through segment es
+    push 0xA000
+    pop  es
+
+    mov  si, 96
     xor  di, di
-    mov  cx, pixels
-draw_loop:
-    mov  al, [gs:di]
+
+    mov  dx, 128
+draw_row:
+    mov  cx, 320
+draw_pix:
+    mov  al, [gs:si]
     and  al, 0x1F
     add  al, 16
     mov  [es:di], al
+    inc  si
     inc  di
-    loop draw_loop
+    loop draw_pix
 
-    ; swap memory buffers
-    push fs
-    push gs
-    pop  fs
-    pop  gs
+    add  si, 192
+    dec  dx
+    jnz  draw_row
 
-    jmp main_loop
+    jmp  main_loop
 
 
 ;;;; END
