@@ -31,7 +31,7 @@ oob_color_speed  equ  6    ; u8   incr. color of OOB points every 2^n frames
 ; fs      = initial read segment
 ;
 ; bp      = frame count
-; si      = 0x100  (after VESA mode info block)
+; si      = 0
 
 
 ;;;; BUFFER FORMAT
@@ -111,7 +111,7 @@ palette:
 
     ; initialize the FPU with some constants
     fninit
-    mov  si, 0x100
+    xor  si, si
     mov  word [si], height * 1000 / 2886  ; 1 / (2 log_2 e)
     fild word [si]
     mov  word [si], width  * 1000 / 2886
@@ -126,7 +126,7 @@ palette:
 ;;;; MAIN LOOP
 main_loop:
 
-    mov  si, 0x100
+    xor  si, si
     xor  di, di
 
     ; initialize write segment register
@@ -304,9 +304,9 @@ draw_pix:
     ; we know the number of "window increments"
     ; because we asked the VESA code earlier
     add  dx, [mib_window_gran]
-    pusha
+    push bx
     call setwin
-    popa
+    pop  bx
 
 draw_no_wininc:
     loop draw_pix
