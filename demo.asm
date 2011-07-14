@@ -15,6 +15,17 @@ bits 16
 org  0x7C00
 
 
+;;; TWEAKABLES
+; Can optimize some of these to 'inc's if set to 1
+;
+inc_red          equ  2    ; u8   red increment per palette entry
+inc_green        equ  3    ; u8   green "
+inc_blue         equ  5    ; u8   blue  "
+init_frame       equ  256  ; u16  initial frame number
+color_shift      equ  2    ; u8   color increment each time thru map
+oob_color_speed  equ  6    ; u8   incr. color of OOB points every 2^n frames
+
+
 ;;;; GLOBAL VARIABLES
 ; ds, ss  = scratch RAM
 ; fs      = initial read segment
@@ -34,7 +45,6 @@ org  0x7C00
 ; Use bit ops to find these from fs = 1000 or 4000
 
 
-
 ; VESA mode info block at ds:0, offsets:
 ;
 ; window granularity
@@ -42,11 +52,9 @@ org  0x7C00
 mib_window_gran equ 4
 
 
-
 ; VGA palette registers
 vga_dac_addr equ 0x3C8
 vga_dac_data equ 0x3C9
-
 
 
 ;;;; ENTRY POINT
@@ -55,23 +63,25 @@ main:
     ; set up data segment and stack
     mov  ax, 0x07E0
     mov  ds, ax
-    mov  es, ax     ; temporarily set
+    mov  es, ax     ; temporarily set for VESA
     mov  ss, ax
     mov  sp, 0x1000
 
-    ; get window granularity for VESA mode 101h
+    ; get info for VESA mode 101h
     ; FIXME: more error checking
     mov  ax, 0x4F01
     mov  cx, 0x0101
     push cx
     xor  di, di
     int  0x10
+
+    ; compute 64 / window_granularity
     mov  ax, 64
     xor  dx, dx
     div  word [mib_window_gran]
     mov  [mib_window_gran], ax
 
-    ; enter VESA mode 101h
+    ; enter the VESA mode
     mov  ax, 0x4F02
     pop  bx
     int  0x10
@@ -93,22 +103,22 @@ palette:
     mov  al, bh
     out  dx, al
     popa
-    add  al, 2
-    add  bl, 3
-    add  bh, 5
+    add  al, inc_red
+    add  bl, inc_green
+    add  bh, inc_blue
     inc  ah
     jnz  palette
 
     ; initialize the FPU with some constants
     fninit
     mov  si, 0x100
-    mov  word [si], height * 1000 / 2886
+    mov  word [si], height * 1000 / 2886  ; 1 / (2 log_2 e)
     fild word [si]
     mov  word [si], width  * 1000 / 2886
     fild word [si]
 
     ; initialize frame counter and segments
-    mov  bp, 0x100
+    mov  bp, init_frame
     push 0x1000
     pop  fs
 
@@ -137,17 +147,11 @@ main_loop:
     fld  st0
     fcos
     fstp st2
-    fldl2e
+    fldl2e     ; rel. period of k control pt.
     fmul
     fcos
 
-    fldlg2
-    fldlg2
-    fmul
-    fadd  st0
-    fadd  st0
-
-    fadd  st0
+    fldln2     ; control pt. scale factor
     fmul  st2, st0
     fmulp st1, st0
 
@@ -232,13 +236,13 @@ in_bounds:
     shl  dx, 9
     add  bx, dx
     mov  al, [gs:bx]
-    add  al, 2  ; color shift for interestingness
+    add  al, color_shift  ; color shift for interestingness
     jmp  write_new
 
 out_of_bounds:
     ; slowly vary color with time
     mov  ax, bp
-    shr  ax, 6
+    shr  ax, oob_color_speed
 
 write_new:
     mov  [es:di], al
@@ -278,7 +282,7 @@ draw:
     push 0xA000
     pop  es
 
-    ; set graphics window
+    ; reset our window into VRAM
     xor  dx, dx
     call setwin
 
@@ -296,6 +300,9 @@ draw_pix:
     inc  di
     jnz  draw_no_wininc
 
+    ; advance the graphics window by 64k
+    ; we know the number of "window increments"
+    ; because we asked the VESA code earlier
     add  dx, [mib_window_gran]
     pusha
     call setwin
@@ -304,11 +311,11 @@ draw_pix:
 draw_no_wininc:
     loop draw_pix
 
-    add  di, 128
+    add  di, 128  ; black border on left / right
     dec  bx
     mov  ax, bx
     shl  ax, 1
-    test al, al
+    test al, al   ; new read seg if !(row & 0x7F)
     jnz  draw_no_seginc
 
     mov  ax, gs
