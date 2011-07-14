@@ -297,7 +297,7 @@ draw:
     call setwin
 
     xor  si, si
-    xor  di, di
+    mov  di, 64
 
     mov  bx, height
 draw_row:
