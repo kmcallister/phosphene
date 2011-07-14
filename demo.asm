@@ -82,37 +82,12 @@ main:
     out  dx, al
     mov  dx, vga_dac_data
     mov  cx, 64
-palette_1:
-    mov  al, cl
-    out  dx, al
-    mov  al, 0
-    out  dx, al
-    out  dx, al
-    loop palette_1
-    mov  cx, 64
-palette_2:
-    mov  al, 0
-    out  dx, al
-    mov  al, cl
-    out  dx, al
-    mov  al, 0
-    out  dx, al
-    loop palette_2
-    mov  cx, 64
-palette_3:
-    mov  al, 0
-    out  dx, al
-    out  dx, al
-    mov  al, cl
-    out  dx, al
-    loop palette_3
-    mov  cx, 64
-palette_4:
-    mov  al, cl
-    out  dx, al
-    out  dx, al
-    out  dx, al
-    loop palette_4
+palette:
+    mov  bl, cl
+    call palette_expand
+    call palette_expand
+    call palette_expand
+    loop palette
 
     ; initialize the FPU with some constants
     fninit
@@ -305,6 +280,7 @@ draw_row:
     mov  cx, width
 draw_pix:
     mov  al, [gs:si]
+    and  al, 0x3F
     mov  [es:di], al
     inc  si
 
@@ -344,6 +320,24 @@ setwin:
     xor  bx, bx
     int  0x10
     ret
+
+
+palette_expand:
+    pusha
+    xor  al, al
+    test bl, 1
+    jz   px_no_1
+    or   al, 0x7
+px_no_1:
+    test bl, 2
+    jz   px_no_2
+    or   al, 0x38
+px_no_2:
+    out  dx, al
+    popa
+    shr  bl, 2
+    ret
+
 
 ;;;; END
 
