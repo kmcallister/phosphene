@@ -167,10 +167,9 @@ in_bounds:
     jmp  write_new
 
 out_of_bounds:
-    ; combine center color with coords
-    mov  al, [fs:center]
-    add  dx, bx
-    or   al, dl
+    ; slowly vary color with time
+    mov  ax, bp
+    shr  ax, 6
 
 write_new:
     mov  [gs:di], al
