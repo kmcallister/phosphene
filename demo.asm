@@ -85,9 +85,13 @@ compute:
     fld  st0
     fcos
     fstp st2
-    fldlg2
+    fldl2e
     fmul
     fcos
+    fldlg2
+    fadd  st0
+    fmul  st2, st0
+    fmulp st1, st0
 
     ; j = cos(t)
     ; k = cos(log_10(2) * t)
@@ -169,7 +173,7 @@ in_bounds:
 out_of_bounds:
     ; slowly vary color with time
     mov  ax, bp
-    shr  ax, 6
+    shr  ax, 4
 
 write_new:
     mov  [gs:di], al
