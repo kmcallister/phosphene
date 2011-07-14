@@ -14,17 +14,14 @@ height equ 384
 bits 16
 org  0x7C00
 
-; VGA card registers
-vga_sequ equ 0x3c4
-vga_crtc equ 0x3d4
-
 
 ;;;; GLOBAL VARIABLES
 ; ds, ss  = scratch RAM
 ; fs      = initial read segment
 ;
 ; bp      = frame count
-; si      = 0
+; si      = 0x100  (after VESA mode info block)
+
 
 ;;;; BUFFER FORMAT
 ; 128 lines of 512 per segment
@@ -37,22 +34,35 @@ vga_crtc equ 0x3d4
 ; Use bit ops to find these from fs = 1000 or 4000
 
 
+
+; VESA mode info block at ds:0, offsets:
+;
+; window granularity
+; NB: n := 64/n by us
+mib_window_gran equ 4
+
+
+
 ;;;; ENTRY POINT
 main:
 
     ; set up data segment and stack
     mov  ax, 0x07E0
     mov  ds, ax
-    ;mov  es, ax     ; temporarily set
+    mov  es, ax     ; temporarily set
     mov  ss, ax
     mov  sp, 0x1000
 
     ; get window granularity for VESA mode 101h
-    ;; FIXME: more error checking
-    ;mov  ax, 0x4F01
-    ;mov  cx, 0x0101
-    ;xor  di, di
-    ;int  0x10
+    ; FIXME: more error checking
+    mov  ax, 0x4F01
+    mov  cx, 0x0101
+    xor  di, di
+    int  0x10
+    mov  ax, 64
+    xor  dx, dx
+    div  word [mib_window_gran]
+    mov  [mib_window_gran], ax
 
     ; enter VESA mode 101h
     mov  ax, 0x4F02
@@ -61,7 +71,7 @@ main:
 
     ; initialize the FPU with some constants
     fninit
-    xor  si, si
+    mov  si, 0x100
     mov  word [si], height * 1000 / 2886
     fild word [si]
     mov  word [si], width  * 1000 / 2886
@@ -76,7 +86,7 @@ main:
 ;;;; MAIN LOOP
 main_loop:
 
-    xor  si, si
+    mov  si, 0x100
     xor  di, di
 
     ; initialize write segment register
@@ -249,7 +259,7 @@ draw_pix:
     inc  di
     jnz  draw_no_wininc
 
-    add  dx, 4
+    add  dx, [mib_window_gran]
     pusha
     call setwin
     popa
