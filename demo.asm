@@ -63,6 +63,7 @@ main:
     ; FIXME: more error checking
     mov  ax, 0x4F01
     mov  cx, 0x0101
+    push cx
     xor  di, di
     int  0x10
     mov  ax, 64
@@ -72,7 +73,7 @@ main:
 
     ; enter VESA mode 101h
     mov  ax, 0x4F02
-    mov  bx, 0x0101
+    pop  bx
     int  0x10
 
     ; set up a palette
