@@ -24,7 +24,7 @@ vga_crtc equ 0x3d4
 ; fs      = initial read segment
 ;
 ; bp      = frame count
-; si      = must remain small for 'mov [si]'
+; si      = 0
 
 ;;;; BUFFER FORMAT
 ; 128 lines of 512 per segment
@@ -43,19 +43,28 @@ main:
     ; set up data segment and stack
     mov  ax, 0x07E0
     mov  ds, ax
+    ;mov  es, ax     ; temporarily set
     mov  ss, ax
     mov  sp, 0x1000
 
-    ; enter VGA mode 13h
-    mov  ax, 0x13
+    ; get window granularity for VESA mode 101h
+    ;; FIXME: more error checking
+    ;mov  ax, 0x4F01
+    ;mov  cx, 0x0101
+    ;xor  di, di
+    ;int  0x10
+
+    ; enter VESA mode 101h
+    mov  ax, 0x4F02
+    mov  bx, 0x0101
     int  0x10
 
     ; initialize the FPU with some constants
     fninit
     xor  si, si
-    mov  word [si], height / 4
+    mov  word [si], height * 1000 / 2886
     fild word [si]
-    mov  word [si], width / 4
+    mov  word [si], width  * 1000 / 2886
     fild word [si]
 
     ; initialize frame counter and segments
@@ -80,8 +89,6 @@ main_loop:
     mov [si], bp
     fild word [si]
     fdiv st2
-    fldpi
-    fmul
 
     ; stack: t h w
 
@@ -109,24 +116,23 @@ compute_pix:
 
     pusha
 
-    fld1
-    fadd st0
+    fldl2e  ; offset factor
 
-    ; stack: 2 j k h w
+    ; stack: o j k h w
 
     mov  [si], dx
     fild word [si]
     fdiv st5
     fsub st1
 
-    ; stack: y 2 j k h w
+    ; stack: y o j k h w
 
     mov  [si], cx
     fild word [si]
     fdiv st5
     fsub st2
 
-    ; stack: x y 2 j k h w
+    ; stack: x y o j k h w
 
     fst   st2
     fmul  st2, st0
@@ -141,8 +147,7 @@ compute_pix:
 
     ; stack: 2xy (x^2 - y^2) j k h w
 
-    fld1
-    fadd  st0
+    fldl2e
     fadd  st3
     fadd  st2, st0
     fadd  st4
@@ -197,13 +202,13 @@ write_new:
     loop compute_pix ; next col
 
     test di, di
-    jnz  no_segwrap
+    jnz  compute_no_seginc
 
     mov  ax, es
     add  ah, 0x10
     mov  es, ax
 
-no_segwrap:
+compute_no_seginc:
     dec  dx          ; new row
     jnz  compute_row
 
@@ -220,34 +225,63 @@ draw:
     mov  ax, fs
     xor  ah, 0x50
     mov  fs, ax
-    add  ah, 0x10
     mov  gs, ax
 
     ; access graphics memory through segment es
     push 0xA000
     pop  es
 
-    mov  si, 96
+    ; set graphics window
+    xor  dx, dx
+    call setwin
+
+    xor  si, si
     xor  di, di
 
-    mov  dx, 128
+    mov  bx, height
 draw_row:
-    mov  cx, 320
+    mov  cx, width
 draw_pix:
     mov  al, [gs:si]
-    and  al, 0x1F
-    add  al, 16
     mov  [es:di], al
     inc  si
+
     inc  di
+    jnz  draw_no_wininc
+
+    add  dx, 4
+    pusha
+    call setwin
+    popa
+
+draw_no_wininc:
     loop draw_pix
 
-    add  si, 192
-    dec  dx
+    add  di, 128
+    dec  bx
+    mov  ax, bx
+    shl  ax, 1
+    test al, al
+    jnz  draw_no_seginc
+
+    mov  ax, gs
+    add  ah, 0x10
+    mov  gs, ax
+    xor  si, si
+
+draw_no_seginc:
+
+    test bx, bx
     jnz  draw_row
 
     jmp  main_loop
 
+
+setwin:
+    mov  ax, 0x4F05
+    xor  bx, bx
+    int  0x10
+    ret
 
 ;;;; END
 
