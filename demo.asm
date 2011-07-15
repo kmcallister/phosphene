@@ -18,9 +18,9 @@ org  0x7C00
 ;;; TWEAKABLES
 ; Can optimize some of these to 'inc's if set to 1
 ;
-inc_red          equ  2    ; u8   red increment per palette entry
-inc_green        equ  3    ; u8   green "
-inc_blue         equ  5    ; u8   blue  "
+inc_red          equ  1    ; u8   red increment per palette entry
+inc_green        equ  2    ; u8   green "
+inc_blue         equ  3    ; u8   blue  "
 init_frame       equ  256  ; u16  initial frame number
 color_shift      equ  2    ; u8   color increment each time thru map
 oob_color_speed  equ  6    ; u8   incr. color of OOB points every 2^n frames
