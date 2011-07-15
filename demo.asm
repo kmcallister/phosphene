@@ -151,14 +151,18 @@ main_loop:
     fmul
     fcos
 
-    fldln2     ; control pt. scale factor
-    fmul  st2, st0
-    fmulp st1, st0
-
     ; j = cos(t)
     ; k = cos(log_10(2) * t)
     ;
     ; stack: j k h w
+
+    ; offset control point to an interesting region
+    fld1
+    fadd  st0
+    fdiv  st2, st0
+    fdivp st1, st0
+    fldln2
+    fsubp st1, st0
 
     mov  dx, height
 compute_row:
@@ -198,10 +202,14 @@ compute_pix:
 
     ; stack: 2xy (x^2 - y^2) j k h w
 
-    fldl2e
     fadd  st3
+    fld   st2
+    faddp st2, st0
+
+    ; stack: 2xy+k (x^2 - y^2)+j j k h w
+
+    fldl2e
     fadd  st2, st0
-    fadd  st4
     faddp st1, st0
 
     ; stack: (2xy + 2) ((x^2 - y^2) + 2) j k h w
