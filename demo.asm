@@ -87,13 +87,13 @@ main:
     ; don't bother initializing bx
     xor  ax, ax
 palette:
-    pusha
+    push ax
     out  dx, al
     mov  al, bl
     out  dx, al
     mov  al, bh
     out  dx, al
-    popa
+    pop  ax
     add  al, inc_red
     ; carry from bl to bh is harmless
     add  bx, (inc_blue << 8) | inc_green
