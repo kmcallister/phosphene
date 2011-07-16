@@ -300,7 +300,6 @@ draw_pix:
     jnz  draw_no_wininc
 
     ; advance the graphics window by 64k
-window_advance:
     add  dl, [ss:0xFFE]
     push bx
     call setwin
