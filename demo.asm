@@ -48,7 +48,6 @@ oob_color_speed  equ  6    ; u8   incr. color of OOB points every 2^n frames
 ; VESA mode info block at ds:0, offsets:
 ;
 ; window granularity
-; NB: n := 64/n by us
 mib_window_gran equ 4
 
 
@@ -79,7 +78,7 @@ main:
     mov  ax, 64
     xor  dx, dx
     div  word [mib_window_gran]
-    mov  [mib_window_gran], ax
+    mov  [fs:window_advance+2], al
 
     ; enter the VESA mode
     mov  ax, 0x4F02
@@ -309,9 +308,10 @@ draw_pix:
     jnz  draw_no_wininc
 
     ; advance the graphics window by 64k
-    ; we know the number of "window increments"
-    ; because we asked the VESA code earlier
-    add  dx, [mib_window_gran]
+    ; init code writes here the number of
+    ; "window increments" per 64 k
+window_advance:
+    add  dl, 0
     push bx
     call setwin
     pop  bx
