@@ -63,7 +63,7 @@ main:
     mov  ax, 0x4F01
     mov  cx, 0x0101
     push cx
-    mov  di, 0x07E0
+    mov  di, 0x7E00
     int  0x10
 
     ; compute 64 / window_granularity
