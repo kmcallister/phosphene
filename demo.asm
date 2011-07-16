@@ -95,8 +95,8 @@ palette:
     out  dx, al
     popa
     add  al, inc_red
-    add  bl, inc_green
-    add  bh, inc_blue
+    ; carry from bl to bh is harmless
+    add  bx, (inc_blue << 8) | inc_green
     inc  ah
     jnz  palette
 
