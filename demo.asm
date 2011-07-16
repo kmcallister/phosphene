@@ -45,12 +45,6 @@ oob_color_speed  equ  6    ; u8   incr. color of OOB points every 2^n frames
 ; Use bit ops to find these from fs = 1000 or 4000
 
 
-; VESA mode info block at ds:0, offsets:
-;
-; window granularity
-mib_window_gran equ 4
-
-
 ; VGA palette registers
 vga_dac_addr equ 0x3C8
 vga_dac_data equ 0x3C9
@@ -61,8 +55,6 @@ main:
 
     ; set up data segment and stack
     mov  ax, 0x07E0
-    mov  ds, ax
-    mov  es, ax     ; temporarily set for VESA
     mov  ss, ax
     mov  sp, 0x1000
 
@@ -71,14 +63,14 @@ main:
     mov  ax, 0x4F01
     mov  cx, 0x0101
     push cx
-    xor  di, di
+    mov  di, 0x07E0
     int  0x10
 
     ; compute 64 / window_granularity
     mov  ax, 64
     xor  dx, dx
-    div  word [mib_window_gran]
-    mov  [fs:window_advance+2], al
+    div  word [di+4]
+    mov  [window_advance+2], al
 
     ; enter the VESA mode
     mov  ax, 0x4F02
@@ -110,11 +102,10 @@ palette:
 
     ; initialize the FPU with some constants
     fninit
-    xor  si, si
-    mov  word [si], height * 1000 / 2886  ; 1 / (2 log_2 e)
-    fild word [si]
-    mov  word [si], width  * 1000 / 2886
-    fild word [si]
+    mov  word [di], height * 1000 / 2886  ; 1 / (2 log_2 e)
+    fild word [di]
+    mov  word [di], width  * 1000 / 2886
+    fild word [di]
 
     ; initialize frame counter and segments
     mov  bp, init_frame
