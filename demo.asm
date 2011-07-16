@@ -85,8 +85,8 @@ main:
     mov  dx, vga_dac_data
 
     ; RGB = al, bl, bh
+    ; don't bother initializing bx
     xor  ax, ax
-    xor  bx, bx
 palette:
     pusha
     out  dx, al
