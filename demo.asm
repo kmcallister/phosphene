@@ -67,7 +67,8 @@ main:
     int  0x10
 
     ; compute 64 / window_granularity
-    mov  ax, 64
+    ; VESA call successful => ah = 0
+    mov  al, 64
     xor  dx, dx
     div  word [di+4]
     mov  [window_advance+2], al
