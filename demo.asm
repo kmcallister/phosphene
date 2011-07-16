@@ -15,7 +15,7 @@ bits 16
 org  0x7C00
 
 
-;;; TWEAKABLES
+;;;; TWEAKABLES
 ; Can optimize some of these to 'inc's if set to 1
 ;
 inc_red          equ  1    ; u8   red increment per palette entry
@@ -24,6 +24,13 @@ inc_blue         equ  3    ; u8   blue  "
 init_frame       equ  256  ; u16  initial frame number
 color_shift      equ  2    ; u8   color increment each time thru map
 oob_color_speed  equ  6    ; u8   incr. color of OOB points every 2^n frames
+
+
+;;;; TEXT PARAMETERS
+text_width  equ  16
+text_height equ  16
+text_y      equ  60
+text_x      equ 192
 
 
 ;;;; GLOBAL VARIABLES
@@ -45,6 +52,14 @@ oob_color_speed  equ  6    ; u8   incr. color of OOB points every 2^n frames
 ; Use bit ops to find these from fs = 1000 or 4000
 
 
+; Start of scratch ram
+ram_start     equ 0x7E00
+
+; Address relative to ram_start where we
+; store rendered text
+rendered_text equ 0x2000
+
+
 ; VGA palette registers
 vga_dac_addr equ 0x3C8
 vga_dac_data equ 0x3C9
@@ -54,9 +69,31 @@ vga_dac_data equ 0x3C9
 main:
 
     ; set up stack
-    mov  ax, 0x07E0
+    mov  ax, ram_start >> 4
     mov  ss, ax
     mov  sp, 0x1000
+
+    ; use mode 13h temporarily to render text
+    mov  ax, 0x13
+    int  0x10
+    mov  bx, 0x0F
+    mov  ah, 0x0E
+    mov  si, text
+load_text:
+    lodsb
+    int  0x10
+    test al, al
+    jnz  load_text
+
+    ; save it to RAM
+    push ds
+    push 0xA000
+    pop  ds
+    xor  si, si
+    mov  di, ram_start + rendered_text
+    mov  cx, 320*text_height / 2
+    rep movsw
+    pop ds
 
     ; get info for VESA mode 101h
     ; FIXME: more error checking
@@ -118,6 +155,30 @@ main_loop:
 
     push ss
     pop  ds
+
+
+;;;; TEXT BLIT
+    mov  ax, fs
+    add  ah, 0x10
+    mov  es, ax
+
+    mov  si, rendered_text
+    mov  di, width * text_y + text_x
+text_blit:
+    mov  cx, text_width
+text_blit_row:
+    lodsb
+    shr  al, 1
+    add  [es:di], al
+    inc  di
+    loop text_blit_row
+    add  si, 320 - text_width
+    add  di, width - text_width
+    cmp  di, width * (text_y + text_height)
+    jb   text_blit
+
+
+;;;; FEEDBACK
 
     xor  si, si
     xor  di, di
@@ -334,6 +395,9 @@ setwin:
     int  0x10
     ret
 
+
+text:
+    db "I", 3, 0x0D, 0x0A, "io", 0
 
 ;;;; END
 
