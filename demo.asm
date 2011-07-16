@@ -53,7 +53,7 @@ vga_dac_data equ 0x3C9
 ;;;; ENTRY POINT
 main:
 
-    ; set up data segment and stack
+    ; set up stack
     mov  ax, 0x07E0
     mov  ss, ax
     mov  sp, 0x1000
