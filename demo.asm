@@ -62,7 +62,6 @@ main:
     ; FIXME: more error checking
     mov  ax, 0x4F01
     mov  cx, 0x0101
-    push cx
     mov  di, 0x7E00
     int  0x10
 
@@ -71,11 +70,11 @@ main:
     mov  al, 64
     xor  dx, dx
     div  word [di+4]
-    mov  [window_advance+2], al
+    push ax  ;; MUST BE FIRST PUSH
 
     ; enter the VESA mode
     mov  ax, 0x4F02
-    pop  bx
+    mov  bx, 0x0101
     int  0x10
 
     ; set up a palette
@@ -301,10 +300,8 @@ draw_pix:
     jnz  draw_no_wininc
 
     ; advance the graphics window by 64k
-    ; init code writes here the number of
-    ; "window increments" per 64 k
 window_advance:
-    add  dl, 0
+    add  dl, [ss:0xFFE]
     push bx
     call setwin
     pop  bx
