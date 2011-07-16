@@ -219,8 +219,8 @@ compute_pix:
 
 
     ; bounds check
-    cmp  bx, width
-    jae  out_of_bounds
+    test bh, 0xFE
+    jnz  out_of_bounds
     cmp  dx, height
     jae  out_of_bounds
 
