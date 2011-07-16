@@ -345,3 +345,5 @@ partitiontable:
     times 64 db 0xff
 signature:
     db 0x55, 0xaa
+
+; vim: ft=tasm
