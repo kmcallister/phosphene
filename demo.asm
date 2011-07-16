@@ -125,6 +125,9 @@ palette:
 ;;;; MAIN LOOP
 main_loop:
 
+    push ss
+    pop  ds
+
     xor  si, si
     xor  di, di
 
@@ -283,7 +286,7 @@ draw:
     mov  ax, fs
     xor  ah, 0x50
     mov  fs, ax
-    mov  gs, ax
+    mov  ds, ax
 
     ; access graphics memory through segment es
     push 0xA000
@@ -300,11 +303,9 @@ draw:
 draw_row:
     mov  cx, width
 draw_pix:
-    mov  al, [gs:si]
-    mov  [es:di], al
-    inc  si
+    movsb
 
-    inc  di
+    test di, di
     jnz  draw_no_wininc
 
     ; advance the graphics window by 64k
@@ -326,9 +327,9 @@ draw_no_wininc:
     test al, al   ; new read seg if !(row & 0x7F)
     jnz  draw_no_seginc
 
-    mov  ax, gs
+    mov  ax, ds
     add  ah, 0x10
-    mov  gs, ax
+    mov  ds, ax
     xor  si, si
 
 draw_no_seginc:
