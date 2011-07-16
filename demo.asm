@@ -60,6 +60,9 @@ ram_start     equ 0x7E00
 rendered_text equ 0x2000
 
 
+; Start of video RAM
+vram_start   equ 0xA0000
+
 ; VGA palette registers
 vga_dac_addr equ 0x3C8
 vga_dac_data equ 0x3C9
@@ -87,7 +90,7 @@ load_text:
 
     ; save it to RAM
     push ds
-    push 0xA000
+    push vram_start >> 4
     pop  ds
     xor  si, si
     mov  di, ram_start + rendered_text
@@ -341,7 +344,7 @@ draw:
     mov  ds, ax
 
     ; access graphics memory through segment es
-    push 0xA000
+    push vram_start >> 4
     pop  es
 
     ; reset our window into VRAM
