@@ -199,9 +199,8 @@ text_blit_row:
     ; stack: t h w
 
     fld  st0
-    fld  st0
     fcos
-    fstp st2
+    fxch
     fldl2e     ; rel. period of k control pt.
     fmul
     fcos
