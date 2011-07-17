@@ -22,8 +22,6 @@ inc_red          equ  2    ; u8   red increment per palette entry
 inc_green        equ  3    ; u8   green "
 inc_blue         equ  5    ; u8   blue  "
 init_frame       equ  256  ; u16  initial frame number
-color_shift      equ  1    ; u8   color increment each time thru map
-oob_color_speed  equ  6    ; u8   incr. color of OOB points every 2^n frames
 
 
 ;;;; TEXT PARAMETERS
@@ -301,13 +299,13 @@ in_bounds:
     shl  dx, 9
     add  bx, dx
     mov  al, [gs:bx]
-    add  al, color_shift  ; color shift for interestingness
+    inc  al  ; color shift for interestingness
     jmp  write_new
 
 out_of_bounds:
     ; slowly vary color with time
     mov  ax, bp
-    shr  ax, oob_color_speed
+    mov  al, ah
 
 write_new:
     mov  [es:di], al
