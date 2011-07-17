@@ -194,7 +194,6 @@ text_blit_row:
     mov [si], bp
     fild word [si]
     fdiv st2
-    fadd st0
 
     ; stack: t h w
 
