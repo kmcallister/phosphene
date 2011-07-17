@@ -286,15 +286,14 @@ compute_pix:
 
 in_bounds:
     ; extract segment from top 2 bits of y
-    mov  cx, dx
-    shr  cx, 3
-    and  cl, 0x30
+    shl  dx, 1
+    shl  dh, 4
     mov  ax, fs
-    add  ah, cl
+    add  ah, dh
     mov  gs, ax
 
-    and  dl, 0x7F
-    shl  dx, 9
+    xor  dh, dh
+    shl  dx, 8
     add  bx, dx
     mov  al, [gs:bx]
     inc  al  ; color shift for interestingness
