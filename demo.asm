@@ -113,7 +113,7 @@ load_text:
     ; FIXME: more error checking
     mov  ax, 0x4F01
     mov  cx, 0x0101
-    mov  di, 0x7E00
+    mov  di, ram_start
     int  0x10
 
     ; compute 64 / window_granularity
