@@ -10,6 +10,11 @@
 width  equ 512
 height equ 384
 
+; viewport size = 2 log_2 e
+; scale by the reciprocal 1
+height_scale equ height * 1000 / 2886
+width_scale  equ width  * 1000 / 2886
+
 ; MBR code runs in 16-bit mode at address 0x7C00
 bits 16
 org  0x7C00
@@ -154,9 +159,9 @@ palette:
 
     ; initialize the FPU with some constants
     fninit
-    mov  word [di], height * 1000 / 2886  ; 1 / (2 log_2 e)
+    mov  word [di], height_scale
     fild word [di]
-    mov  word [di], width  * 1000 / 2886
+    mov  word [di], width_scale
     fild word [di]
 
     ; initialize frame counter and segments
