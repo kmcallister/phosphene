@@ -138,6 +138,8 @@ load_text:
     ; don't bother initializing bx
     xor  ax, ax
 palette:
+    ; al has short operands, so worth
+    ; the trouble of saving
     push ax
     out  dx, al
     mov  al, bl
