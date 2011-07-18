@@ -161,7 +161,7 @@ palette:
     fninit
     mov  word [di], height_scale
     fild word [di]
-    mov  word [di], width_scale
+    mov  byte [di], width_scale
     fild word [di]
 
     ; initialize frame counter and segments
