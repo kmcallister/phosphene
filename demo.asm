@@ -291,9 +291,10 @@ compute_pix:
     ; bx <- scaled (x^2 - y^2)
 
 
+    ; wrap x
+    and  bh, 0x01
+
     ; bounds check
-    test bh, 0xFE
-    jnz  out_of_bounds
     cmp  dx, height
     jae  out_of_bounds
 
