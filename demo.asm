@@ -135,8 +135,8 @@ load_text:
     inc  dx
 
     ; RGB = al, bl, bh
-    ; don't bother initializing bx
-    xor  ax, ax
+    ; don't bother initializing
+    mov  cx, 256
 palette:
     ; al has short operands, so worth
     ; the trouble of saving
@@ -150,8 +150,7 @@ palette:
     add  al, inc_red
     ; carry from bl to bh is harmless
     add  bx, (inc_blue << 8) | inc_green
-    inc  ah
-    jnz  palette
+    loop palette
 
     ; initialize the FPU with some constants
     fninit
