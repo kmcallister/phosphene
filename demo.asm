@@ -185,7 +185,8 @@ main_loop:
     mov  si, rendered_text
     mov  di, width * text_y + text_x
 text_blit:
-    mov  cx, text_width
+    ; cx cleared by previous loop
+    mov  cl, text_width
 text_blit_row:
     lodsb
     shr  al, 1
