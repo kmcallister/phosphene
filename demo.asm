@@ -132,7 +132,7 @@ load_text:
     mov  dx, vga_dac_addr
     xor  al, al
     out  dx, al
-    mov  dx, vga_dac_data
+    inc  dx
 
     ; RGB = al, bl, bh
     ; don't bother initializing bx
