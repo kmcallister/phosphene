@@ -96,6 +96,12 @@ load_text:
     rep movsw
     pop ds
 
+    ; switch back to text mode
+    ; going directly from 13h to 101h upsets
+    ; some non-emulated hardware
+    xor ax, ax
+    int 0x10
+
     ; get info for VESA mode 101h
     ; FIXME: more error checking
     mov  ax, 0x4F01
