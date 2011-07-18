@@ -294,9 +294,14 @@ compute_pix:
     ; wrap x
     and  bh, 0x01
 
+    ; default for out-of-bounds pixels
+    ; slowly vary color with time
+    mov  ax, bp
+    mov  al, ah
+
     ; bounds check
     cmp  dx, height
-    jae  out_of_bounds
+    jae  write_new
 
 in_bounds:
     ; extract segment from top 2 bits of y
@@ -311,12 +316,6 @@ in_bounds:
     add  bx, dx
     mov  al, [gs:bx]
     inc  al  ; color shift for interestingness
-    jmp  write_new
-
-out_of_bounds:
-    ; slowly vary color with time
-    mov  ax, bp
-    mov  al, ah
 
 write_new:
     mov  [es:di], al
