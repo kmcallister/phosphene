@@ -57,6 +57,8 @@ ram_start     equ 0x7E00
 ; store rendered text
 rendered_text equ 0x2000
 
+; Address of first element of stack, in ss
+stack_start   equ 0x1000
 
 ; Start of video RAM
 vram_start   equ 0xA0000
@@ -72,7 +74,7 @@ main:
     ; set up stack
     mov  ax, ram_start >> 4
     mov  ss, ax
-    mov  sp, 0x1000
+    mov  sp, stack_start
 
     ; use mode 13h temporarily to render text
     mov  ax, 0x13
@@ -365,7 +367,7 @@ draw_pix:
     jnz  draw_no_wininc
 
     ; advance the graphics window by 64k
-    add  dl, [ss:0xFFE]
+    add  dl, [ss:stack_start-2]
     push bx
     call setwin
     pop  bx
