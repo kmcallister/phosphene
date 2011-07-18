@@ -383,9 +383,7 @@ draw_no_wininc:
 
     add  di, 128  ; black border on left / right
     dec  bx
-    mov  ax, bx
-    shl  ax, 1
-    test al, al   ; new read seg if !(row & 0x7F)
+    test bl, 0x7F ; new read seg if !(row & 0x7F)
     jnz  draw_no_seginc
 
     mov  ax, ds
