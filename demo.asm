@@ -146,10 +146,13 @@ palette:
     ; al has short operands, so worth
     ; the trouble of saving
     push ax
+    shr  al, 2
     out  dx, al
     mov  al, bl
+    shr  al, 2
     out  dx, al
     mov  al, bh
+    shr  al, 2
     out  dx, al
     pop  ax
     add  al, inc_red
