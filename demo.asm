@@ -368,7 +368,7 @@ draw:
     pop  es
 
     ; reset our window into VRAM
-    xor  dx, dx
+    ; dx is 0 from earlier loop
     call setwin
 
     xor  si, si
