@@ -27,7 +27,6 @@ org  0x7C00
 inc_red          equ  4    ; u8   red increment per palette entry
 inc_green        equ  5    ; u8   green "
 inc_blue         equ  3    ; u8   blue  "
-init_frame       equ  256  ; u16  initial frame number
 
 
 ;;;; TEXT PARAMETERS
@@ -167,7 +166,7 @@ palette:
     fild word [di]
 
     ; initialize frame counter and segments
-    mov  bp, init_frame
+    xor  bp, bp
     push 0x1000
     pop  fs
 
