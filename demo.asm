@@ -96,7 +96,7 @@ main:
 load_text:
     lodsb
     int  0x10
-    cmp  al, 0xFF
+    cmp  al, 0xAA
     jne  load_text
 
     ; save it to RAM
