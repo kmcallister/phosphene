@@ -304,7 +304,7 @@ compute_pix:
     ; default for out-of-bounds pixels
     ; slowly vary color with time
     mov  ax, bp
-    mov  al, ah
+    shr  ax, 6
 
     ; bounds check
     cmp  dx, height
