@@ -190,7 +190,6 @@ text_blit:
     mov  cl, text_width
 text_blit_row:
     lodsb
-    shr  al, 1
     add  [es:di], al
     inc  di
     loop text_blit_row
