@@ -306,9 +306,7 @@ compute_pix:
     and  bh, 0x01
 
     ; default for out-of-bounds pixels
-    ; slowly vary color with time
-    mov  ax, bp
-    shr  ax, 6
+    xor  ax, ax
 
     ; bounds check
     cmp  dx, height
@@ -326,7 +324,13 @@ in_bounds:
     shl  dx, 8
     add  bx, dx
     mov  al, [gs:bx]
-    inc  al  ; color shift for interestingness
+
+    cmp  al, 0xF0
+    jae  write_new
+
+    mov  bx, bp
+    and  bh, 0x0F
+    add  al, bh ; color shift for interestingness
 
 write_new:
     mov  [es:di], al
