@@ -97,8 +97,8 @@ main:
 load_text:
     lodsb
     int  0x10
-    test al, al
-    jnz  load_text
+    cmp  al, 0xFF
+    jne  load_text
 
     ; save it to RAM
     push ds
@@ -419,14 +419,14 @@ setwin:
 
 text:
     db "I", 3, 0x0D, 0x0A, "io", 0x0D, 0x0A, 0x0D, 0x0A
-    db "greets", 0x0D, 0x0A, "mrule", 0x0D, 0x0A, 0xEB, 0xEE, "i", 0
+    db "greets", 0x0D, 0x0A, "mrule", 0x0D, 0x0A, 0xEB, 0xEE, "i"
 
 ;;;; END
 
 ; MBR required data
 
 padding:
-    times 446 - ($-$$) db 0
+    times 446 - ($-$$) db 0xff
 partitiontable:
     times 64 db 0xff
 signature:
