@@ -23,7 +23,8 @@ org  0x7C00
 ;;;; TWEAKABLES
 ; Can optimize some of these to 'inc's if set to 1
 ;
-inc_red          equ  2    ; u8   red increment per palette entry
+; For hilarious reasons, inc_red is rounded to a multiple of 4
+inc_red          equ  4    ; u8   red increment per palette entry
 inc_green        equ  3    ; u8   green "
 inc_blue         equ  5    ; u8   blue  "
 init_frame       equ  256  ; u16  initial frame number
@@ -139,26 +140,23 @@ load_text:
     out  dx, al
     inc  dx
 
-    ; RGB = al, bl, bh
-    ; don't bother initializing
-    mov  cx, 256
+    ; 6-bit RGB values in al, bh, ch
+    ; have to initialize cx, used for termination
+    xor  cx, cx
 palette:
     ; al has short operands, so worth
     ; the trouble of saving
     push ax
-    shr  al, 2
-    out  dx, al
-    mov  al, bl
-    shr  al, 2
     out  dx, al
     mov  al, bh
-    shr  al, 2
+    out  dx, al
+    mov  al, ch
     out  dx, al
     pop  ax
-    add  al, inc_red
-    ; carry from bl to bh is harmless
-    add  bx, (inc_blue << 8) | inc_green
-    loop palette
+    add  al, inc_red   >> 2
+    add  bx, inc_green << 6
+    add  cx, inc_blue  << 6
+    jnz  palette
 
     ; initialize the FPU with some constants
     fninit
