@@ -26,7 +26,7 @@ org  0x7C00
 ; For hilarious reasons, inc_red is rounded to a multiple of 4
 inc_red          equ  4    ; u8   red increment per palette entry
 inc_green        equ  5    ; u8   green "
-inc_blue         equ  3    ; u8   blue  "
+inc_blue         equ  6    ; u8   blue  "
 
 
 ;;;; TEXT PARAMETERS
