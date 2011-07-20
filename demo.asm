@@ -30,8 +30,8 @@ inc_blue         equ  3    ; u8   blue  "
 
 
 ;;;; TEXT PARAMETERS
-text_width  equ  48
-text_height equ  24
+text_width  equ  64
+text_height equ  16
 text_num    equ   2
 text_y      equ  60
 text_x      equ 192
@@ -184,7 +184,7 @@ main_loop:
     mov  es, ax
 
     mov  si, rendered_text
-    test bp, 0x40
+    test bp, 0x400
     jz   text1
     add  si, text_height * 320
 text1:
@@ -417,8 +417,8 @@ setwin:
 
 
 text:
-    db "I", 3, 0x0D, 0x0A, "io", 0x0D, 0x0A, 0x0D, 0x0A
-    db "greets", 0x0D, 0x0A, "mrule", 0x0D, 0x0A, 0xEB, 0xEE, "i"
+    db "I", 3, 0x0D, 0x0A, "io", 0x0D, 0x0A
+    db "g: ", 0xEB, 0xEE, "i", 0x0D, 0x0A, "   mrule"
 
 ;;;; END
 
