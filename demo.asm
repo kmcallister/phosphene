@@ -67,11 +67,11 @@ rendered_text equ 0x2000
 stack_start   equ 0x1000
 
 ; Start of video RAM
-vram_start   equ 0xA0000
+vram_start    equ 0xA0000
 
 ; VGA palette registers
-vga_dac_addr equ 0x3C8
-vga_dac_data equ 0x3C9
+vga_dac_addr  equ 0x3C8
+vga_dac_data  equ 0x3C9
 
 
 ;;;; ENTRY POINT
