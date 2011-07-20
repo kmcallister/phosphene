@@ -31,8 +31,9 @@ init_frame       equ  256  ; u16  initial frame number
 
 
 ;;;; TEXT PARAMETERS
-text_width  equ  16
-text_height equ  16
+text_width  equ  48
+text_height equ  24
+text_num    equ   2
 text_y      equ  60
 text_x      equ 192
 
@@ -105,7 +106,7 @@ load_text:
     pop  ds
     xor  si, si
     mov  di, ram_start + rendered_text
-    mov  cx, 320*text_height / 2
+    mov  cx, 320*text_num*text_height / 2
     rep movsw
     pop ds
 
@@ -184,6 +185,10 @@ main_loop:
     mov  es, ax
 
     mov  si, rendered_text
+    test bp, 0x40
+    jz   text1
+    add  si, text_height * 320
+text1:
     mov  di, width * text_y + text_x
 text_blit:
     ; cx cleared by previous loop
@@ -413,7 +418,8 @@ setwin:
 
 
 text:
-    db "I", 3, 0x0D, 0x0A, "io", 0
+    db "I", 3, 0x0D, 0x0A, "io", 0x0D, 0x0A, 0x0D, 0x0A
+    db "greets", 0x0D, 0x0A, "mrule", 0x0D, 0x0A, 0xEB, 0xEE, "i", 0
 
 ;;;; END
 
