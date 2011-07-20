@@ -214,10 +214,10 @@ text_blit_row:
     mov  es, ax
 
     ; push frame count to the FPU stack and scale
-    ; by height (arbitrary, convenient)
+    ; by width (arbitrary, convenient)
     mov [si], bp
     fild word [si]
-    fdiv st2
+    fdiv st1
 
     ; stack: t h w
 
