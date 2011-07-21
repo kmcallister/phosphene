@@ -119,7 +119,13 @@ load_text:
     ; FIXME: more error checking
     mov  ax, 0x4F01
     mov  cx, 0x0101
+    push cx
     mov  di, ram_start
+    int  0x10
+
+    ; enter the VESA mode
+    mov  ax, 0x4F02
+    pop  bx
     int  0x10
 
     ; compute 64 / window_granularity
@@ -128,11 +134,6 @@ load_text:
     xor  dx, dx
     div  word [di+4]
     push ax  ;; MUST BE FIRST PUSH
-
-    ; enter the VESA mode
-    mov  ax, 0x4F02
-    mov  bx, 0x0101
-    int  0x10
 
     ; set up a palette
     mov  dx, vga_dac_addr
@@ -422,7 +423,7 @@ setwin:
 
 text:
     db "I", 3, 0x0D, 0x0A, "io", 0x0D, 0x0A
-    db "g: ", 0xEB, 0xEE, "i", 0x0D, 0x0A, "   mrule"
+    db "g: ", 0xEB, 0xEE, "i", 0x0D, 0x0A, "mrule"
 
 ;;;; END
 
