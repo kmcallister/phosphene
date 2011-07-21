@@ -1,82 +1,81 @@
+;;;; phosphene
+;;;;
 ;;;; fractal video feedback in the MBR
-
+;;;;
+;;;;   by:      keegan
+;;;;   greets:  dei, mrule
+;;;;
 ;;;; TO RUN:
-;;;;   nasm -f bin -o demo.com demo.asm
-;;;;   qemu -hda demo.com
+;;;;   nasm -f bin -o phosphene.mbr phosphene.asm
+;;;;   qemu -hda phosphene.mbr  # or boot it for real
 
 
 ;;;; CONSTANTS
-
-width  equ 512
-height equ 384
-
-; viewport size = 2 log_2 e
-; scale by the reciprocal 1
-height_scale equ height * 1000 / 2886
-width_scale  equ width  * 1000 / 2886
 
 ; MBR code runs in 16-bit mode at address 0x7C00
 bits 16
 org  0x7C00
 
+; start of scratch ram
+ram_start     equ 0x7E00
 
-;;;; TWEAKABLES
-; Can optimize some of these to 'inc's if set to 1
+; address relative to ram_start where we
+; store rendered text
+rendered_text equ 0x2000
+
+; address of first element of stack, in ss
+stack_start   equ 0x1000
+
+; start of video RAM
+vram_start    equ 0xA0000
+
+; VGA palette registers
+vga_dac_addr  equ 0x3C8
+
+; VESA mode 101h: 640 x 480 x byte
+vesa_mode     equ 0x101
+
+; Feedback buffers:
+;   width : 512 pixels
+;   height: 3 segments of 128 pixels each
 ;
-; For hilarious reasons, inc_red is rounded to a multiple of 4
-inc_red          equ  4    ; u8   red increment per palette entry
-inc_green        equ  5    ; u8   green "
-inc_blue         equ  6    ; u8   blue  "
+; The three segments:
+;   buffer A:  10000 20000 30000
+;   buffer B:  40000 50000 60000
+;
+; Use bit ops to find these from fs = 1000 or 4000
+width  equ 512
+height equ 384
 
+; viewport size = 2 log_2 e
+; scale by the reciprocal
+height_scale equ height * 1000 / 2886
+width_scale  equ width  * 1000 / 2886
 
-;;;; TEXT PARAMETERS
+; text rendered in mode 13h
 text_width  equ  64
 text_height equ  16
 text_num    equ   2
 text_y      equ  60
 text_x      equ 192
 
+; Color palette:
+;   Each channel is incremented at a different rate
+;   For stupid reasons, inc_red is rounded to a multiple of 4
+inc_red          equ  4    ; u8   red increment per palette entry
+inc_green        equ  5    ; u8   green "
+inc_blue         equ  6    ; u8   blue  "
+
 
 ;;;; GLOBAL VARIABLES
 ; ds, ss  = scratch RAM
-; fs      = initial read segment
+; fs      = initial read segment per frame
 ;
-; bp      = frame count
+; bp      = frame counter
 ; si      = 0
 
 
-;;;; BUFFER FORMAT
-; 128 lines of 512 per segment
-;   3 segments per buf
-;
-; The three segments:
-;   buffer A:  1000 2000 3000
-;   buffer B:  4000 5000 6000
-;
-; Use bit ops to find these from fs = 1000 or 4000
-
-
-; Start of scratch ram
-ram_start     equ 0x7E00
-
-; Address relative to ram_start where we
-; store rendered text
-rendered_text equ 0x2000
-
-; Address of first element of stack, in ss
-stack_start   equ 0x1000
-
-; Start of video RAM
-vram_start    equ 0xA0000
-
-; VGA palette registers
-vga_dac_addr  equ 0x3C8
-vga_dac_data  equ 0x3C9
-
-
 ;;;; ENTRY POINT
-main:
-
     ; set up segments
     xor  ax, ax
     mov  ds, ax
@@ -87,7 +86,7 @@ main:
     mov  ss, ax
     mov  sp, stack_start
 
-    ; use mode 13h temporarily to render text
+    ; use mode 13h temporarily, for rendering text
     mov  ax, 0x13
     int  0x10
     mov  bx, 0x0F
@@ -96,10 +95,10 @@ main:
 load_text:
     lodsb
     int  0x10
-    cmp  al, 0xAA
+    cmp  al, 0xAA  ; stop at end-of-MBR marker
     jne  load_text
 
-    ; save it to RAM
+    ; save rendered text to RAM
     push ds
     push vram_start >> 4
     pop  ds
@@ -116,9 +115,8 @@ load_text:
     int 0x10
 
     ; get info for VESA mode 101h
-    ; FIXME: more error checking
     mov  ax, 0x4F01
-    mov  cx, 0x0101
+    mov  cx, vesa_mode
     push cx
     mov  di, ram_start
     int  0x10
@@ -133,20 +131,20 @@ load_text:
     mov  al, 64
     xor  dx, dx
     div  word [di+4]
-    push ax  ;; MUST BE FIRST PUSH
+    push ax  ;; MUST BE BOTTOM PUSH
 
     ; set up a palette
+    ; we assume the VESA mode has a VGA-compatible DAC
     mov  dx, vga_dac_addr
     xor  al, al
     out  dx, al
     inc  dx
 
     ; 6-bit RGB values in al, bh, ch
-    ; have to initialize cx, used for termination
+    ; cx used for termination too
     xor  cx, cx
 palette:
-    ; al has short operands, so worth
-    ; the trouble of saving
+    ; worth saving al due to short operands
     push ax
     out  dx, al
     mov  al, bh
@@ -168,27 +166,31 @@ palette:
 
     ; initialize frame counter and segments
     xor  bp, bp
+
+    ; select first buffer for reading
     push 0x1000
     pop  fs
 
 
 ;;;; MAIN LOOP
 main_loop:
-
+    ; restore clobbered ds
     push ss
     pop  ds
 
 
 ;;;; TEXT BLIT
+    ; draw text into the read buffer
     mov  ax, fs
     add  ah, 0x10
     mov  es, ax
 
     mov  si, rendered_text
     test bp, 0x400
-    jz   text1
+    jz   text_first_message
+    ; draw the second message sometimes
     add  si, text_height * 320
-text1:
+text_first_message:
     mov  di, width * text_y + text_x
 text_blit:
     ; cx cleared by previous loop
@@ -205,7 +207,6 @@ text_blit_row:
 
 
 ;;;; FEEDBACK
-
     xor  si, si
     xor  di, di
 
@@ -220,7 +221,7 @@ text_blit_row:
     fild word [si]
     fdiv st1
 
-    ; stack: t h w
+    ; FPU stack: t h w
 
     fld  st0
     fcos
@@ -229,12 +230,15 @@ text_blit_row:
     fmul
     fcos
 
-    ; j = cos(t)
-    ; k = cos(log_10(2) * t)
+    ; Move control point in a polar flower:
+    ;   j = cos(t)
+    ;   k = cos(log_2(e) * t)
     ;
     ; stack: j k h w
 
     ; offset control point to an interesting region
+    ; center at (-ln(2) + 0i)
+    ; flower radius 0.5
     fld1
     fadd  st0
     fdiv  st2, st0
@@ -242,6 +246,7 @@ text_blit_row:
     fldln2
     fsubp st1, st0
 
+    ; loop over pixels in the write buffer
     mov  dx, height
 compute_row:
     mov  cx, width
@@ -249,7 +254,7 @@ compute_pix:
 
     pusha
 
-    fldl2e  ; offset factor
+    fldl2e  ; used to offset viewport center to origin
 
     ; stack: o j k h w
 
@@ -290,30 +295,29 @@ compute_pix:
     fadd  st2, st0
     faddp st1, st0
 
-    ; stack: (2xy + 2) ((x^2 - y^2) + 2) j k h w
+    ; stack: (2xy + o) ((x^2 - y^2) + o) j k h w
 
     fmul  st5
     fistp word [si]
     mov   dx, [si]
-    ; dx <- scaled (2xy + 2)
+    ; dx <- scaled (2xy + o)
 
     fmul  st3
     fistp word [si]
     mov   bx, [si]
-    ; bx <- scaled (x^2 - y^2)
+    ; bx <- scaled ((x^2 - y^2) + o)
 
 
-    ; wrap x
+    ; wrap x coordinate
     and  bh, 0x01
 
-    ; default for out-of-bounds pixels is 0
+    ; default color for out-of-bounds pixels is 0
     ; al is 0 from earlier segment register load
 
-    ; bounds check
+    ; check bounds for y coordinate
     cmp  dx, height
-    jae  write_new
+    jae  compute_write
 
-in_bounds:
     ; extract segment from top 2 bits of y
     shl  dx, 1
     shl  dh, 4
@@ -321,47 +325,52 @@ in_bounds:
     add  ah, dh
     mov  gs, ax
 
+    ; fetch at offset (y*width + x)
+    ; width = 2**9, shifted 1 already
     xor  dh, dh
     shl  dx, 8
     add  bx, dx
     mov  al, [gs:bx]
 
+    ; clamp color to avoid super blinky center regions
     cmp  al, 0xF0
-    jae  write_new
+    jae  compute_write
 
+    ; color shift per map iteration, varying over time
     mov  bx, bp
     and  bh, 0x0F
-    add  al, bh ; color shift for interestingness
+    add  al, bh
 
-write_new:
+compute_write:
     mov  [es:di], al
 
     popa
 
-    inc  di          ; next output pixel (may wrap)
-    loop compute_pix ; next col
+    ; next column, output pixel
+    inc  di
+    loop compute_pix
 
+    ; advance write segment when di wraps
     test di, di
     jnz  compute_no_seginc
-
     mov  ax, es
     add  ah, 0x10
     mov  es, ax
 
 compute_no_seginc:
-    dec  dx          ; new row
+    ; next row
+    dec  dx
     jnz  compute_row
 
-    inc  bp          ; next frame
+    ; bump frame counter
+    inc  bp
 
     ; discard j, k from FPU stack
     fcompp
 
 
-;;;; DRAW STEP
-draw:
-
-    ; swap memory buffers
+;;;; DRAW TO SCREEN
+    ; swap feedback buffers
     mov  ax, fs
     xor  ah, 0x50
     mov  fs, ax
@@ -375,6 +384,8 @@ draw:
     ; dx is 0 from earlier loop
     call setwin
 
+    ; copy beginning of feedback buffer to
+    ; center of screen
     xor  si, si
     mov  di, 48*640 + 64
 
@@ -384,10 +395,9 @@ draw_row:
 draw_pix:
     movsb
 
+    ; advance the graphics window by 64k when di wraps
     test di, di
     jnz  draw_no_wininc
-
-    ; advance the graphics window by 64k
     add  dl, [ss:stack_start-2]
     push bx
     call setwin
@@ -396,18 +406,19 @@ draw_pix:
 draw_no_wininc:
     loop draw_pix
 
-    add  di, 128  ; black border on left / right
+    ; end of row: 128 pixels of left/right border
+    add  di, 128
     dec  bx
-    test bl, 0x7F ; new read seg if !(row & 0x7F)
-    jnz  draw_no_seginc
 
+    ; advance read segment when !(row & 0x7F)
+    test bl, 0x7F
+    jnz  draw_no_seginc
     mov  ax, ds
     add  ah, 0x10
     mov  ds, ax
     xor  si, si
 
 draw_no_seginc:
-
     test bx, bx
     jnz  draw_row
 
@@ -415,6 +426,7 @@ draw_no_seginc:
 
 
 setwin:
+    ; call the VESA BIOS to set the VRAM window
     mov  ax, 0x4F05
     xor  bx, bx
     int  0x10
@@ -425,10 +437,10 @@ text:
     db "I", 3, 0x0D, 0x0A, "io", 0x0D, 0x0A
     db "g: ", 0xEB, 0xEE, "i", 0x0D, 0x0A, "mrule"
 
-;;;; END
+;;;; PROGRAM END
+
 
 ; MBR required data
-
 padding:
     times 446 - ($-$$) db 0xff
 partitiontable:
