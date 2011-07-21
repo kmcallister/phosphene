@@ -305,8 +305,8 @@ compute_pix:
     ; wrap x
     and  bh, 0x01
 
-    ; default for out-of-bounds pixels
-    xor  ax, ax
+    ; default for out-of-bounds pixels is 0
+    ; al is 0 from earlier segment register load
 
     ; bounds check
     cmp  dx, height
