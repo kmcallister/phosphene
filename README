@@ -1,0 +1,10 @@
+phosphene
+
+fractal video feedback in the MBR
+
+  by:      keegan
+  greets:  dei, mrule
+
+TO RUN:
+  nasm -f bin -o phosphene.mbr phosphene.asm
+  qemu -hda phosphene.mbr  # or boot it for real
